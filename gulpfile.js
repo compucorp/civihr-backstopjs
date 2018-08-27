@@ -208,7 +208,9 @@ async function runBackstopJS (command) {
       .pipe(gulp.dest('.'))
       .on('end', async () => {
         try {
-          (typeof argv.skipCookies === 'undefined') && await writeCookies();
+          if (_.includes(['reference', 'test'], command)) {
+            (typeof argv.skipCookies === 'undefined') && await writeCookies();
+          }
 
           await backstopjs(command, {
             config: FILES.temp,
