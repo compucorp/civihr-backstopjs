@@ -1,6 +1,6 @@
 'use strict';
 
-const Page = require('../../../page-objects/ssp-leave-absences-my-leave-report');
+const Page = require('../../../../page-objects/ssp-leave-absences-my-leave-report');
 
 // precondition: need to have at least one pending leave request
 module.exports = async engine => {

@@ -1,6 +1,6 @@
 'use strict';
 
-const Page = require('../../../page-objects/tabs/absence');
+const Page = require('../../../../page-objects/tabs/absence');
 
 module.exports = async engine => {
   const page = new Page(engine);

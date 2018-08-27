@@ -1,6 +1,6 @@
 'use strict';
 
-const Page = require('../../page-objects/onboarding-wizard');
+const Page = require('../../../page-objects/onboarding-wizard');
 
 module.exports = async engine => {
   const page = new Page(engine);

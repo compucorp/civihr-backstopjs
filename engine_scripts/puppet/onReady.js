@@ -1,4 +1,4 @@
-const Page = require('../page-objects/page');
+const Page = require('../../page-objects/page');
 
 module.exports = async (puppet, scenario, vp) => {
   const page = new Page(puppet);

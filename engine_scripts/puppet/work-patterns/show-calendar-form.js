@@ -1,6 +1,6 @@
 'use strict';
 
-const Page = require('../../page-objects/work-patterns-form');
+const Page = require('../../../page-objects/work-patterns-form');
 
 module.exports = async engine => {
   const page = new Page(engine);

@@ -1,6 +1,6 @@
 'use strict';
 
-const Page = require('../../../page-objects/leave-absence-import');
+const Page = require('../../../../page-objects/leave-absence-import');
 
 module.exports = async engine => {
   const page = new Page(engine);

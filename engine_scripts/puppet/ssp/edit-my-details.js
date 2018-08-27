@@ -1,6 +1,6 @@
 'use strict';
 
-const Page = require('../../page-objects/ssp-my-details');
+const Page = require('../../../page-objects/ssp-my-details');
 
 module.exports = async engine => {
   const page = new Page(engine);

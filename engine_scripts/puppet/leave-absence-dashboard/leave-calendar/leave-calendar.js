@@ -1,6 +1,6 @@
 'use strict';
 
-const Page = require('../../../page-objects/leave-absence-dashboard');
+const Page = require('../../../../page-objects/leave-absence-dashboard');
 
 module.exports = async engine => {
   const page = new Page(engine);
