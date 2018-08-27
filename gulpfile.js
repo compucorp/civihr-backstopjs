@@ -12,8 +12,14 @@ const path = require('path');
 const puppeteer = require('puppeteer');
 const PluginError = require('plugin-error');
 
+const DEFAULT_GROUP = '_all_';
 const DEFAULT_USER = 'civihr_admin';
-const USERS = ['admin', 'civihr_admin', 'civihr_manager', 'civihr_staff'];
+const USERS = [
+  'admin',
+  'civihr_admin',
+  'civihr_manager',
+  'civihr_staff'
+];
 const CONFIG_TPL = {
   'url': 'http://%{site-host}',
   'root': '%{path-to-site-root}'
@@ -23,41 +29,45 @@ const FILES = {
   temp: 'backstop.temp.json',
   tpl: 'backstop.tpl.json'
 };
+const CACHE = {
+  idsMap: null,
+  siteConfig: null
+};
 
 ['reference', 'test', 'openReport', 'approve'].map(action => {
-  gulp.task(`backstopjs:${action}`, () => {
-    runBackstopJS(action);
+  gulp.task(`backstopjs:${action}`, async () => {
+    await runBackstopJS(action);
   });
 });
 
 /**
  * Returns the list of the scenarios from
- *   a. All the different groups if `group` is == '_all_',
- *   b. Only the given group
+ *   a. All the different groups if the selected group is == '_all_',
+ *   b. Only the selected group
  *
- * @param  {Array} usersIds
- * @param  {String} groupName
  * @return {Array}
  */
-function buildScenariosList (usersIds, groupName) {
-  const config = siteConfig();
-  const dirPath = 'scenarios';
+function buildScenariosList () {
+  const scenariosPath = 'scenarios';
+  const group = selectedGroup();
 
-  return _(fs.readdirSync(dirPath))
+  return _(fs.readdirSync(scenariosPath))
     .filter(scenario => {
-      return (groupName === '_all_' ? true : scenario === `${groupName}.json`) && scenario.endsWith('.json');
+      return group === DEFAULT_GROUP ? true : scenario === `${group}.json`;
     })
     .map(scenario => {
-      return JSON.parse(fs.readFileSync(path.join(dirPath, scenario))).scenarios;
+      const content = fs.readFileSync(path.join(scenariosPath, scenario));
+
+      return JSON.parse(content).scenarios;
     })
     .flatten()
     .map((scenario, index, scenarios) => {
       const user = scenario.user || DEFAULT_USER;
 
-      return _.assign(scenario, {
+      return Object.assign(scenario, {
         cookiePath: path.join('cookies', `${user}.json`),
         count: `(${(index + 1)} of ${scenarios.length})`,
-        url: constructScenarioUrl(config.url, scenario.url, usersIds)
+        url: constructScenarioUrl(scenario.url)
       });
     })
     .value();
@@ -84,15 +94,13 @@ function cleanUpAndNotify (success) {
  * Constructs URL for BackstopJS scenario based on
  * site URL, scenario config URL and contact "roles" and IDs map
  *
- * @param  {String} siteUrl
  * @param  {String} scenarioUrl
- * @param  {Object} usersIds
  * @return {String}
  */
-function constructScenarioUrl (siteUrl, scenarioUrl, usersIds) {
+function constructScenarioUrl (scenarioUrl) {
   return scenarioUrl
-    .replace('{{siteUrl}}', siteUrl)
-    .replace(/\{\{contactId:([^}]+)\}\}/g, (__, user) => usersIds[user].civi);
+    .replace('{{siteUrl}}', siteConfig().url)
+    .replace(/\{\{contactId:([^}]+)\}\}/g, (__, user) => idsMap()[user].civi);
 }
 
 /**
@@ -103,12 +111,10 @@ function constructScenarioUrl (siteUrl, scenarioUrl, usersIds) {
  * @return {String}
  */
 function createTempConfig () {
-  const group = argv.group ? argv.group : '_all_';
-  const userIds = getUsersIds();
-  const list = buildScenariosList(userIds, group);
+  const group = selectedGroup();
   const content = JSON.parse(fs.readFileSync(FILES.tpl));
 
-  content.scenarios = list;
+  content.scenarios = buildScenariosList();
 
   ['bitmaps_reference', 'bitmaps_test', 'html_report', 'ci_report'].forEach(path => {
     content.paths[path] = content.paths[path].replace('{group}', group);
@@ -118,44 +124,62 @@ function createTempConfig () {
 }
 
 /**
- * Given a set of UF matches, it finds the contact with the specified drupal id
- *
- * @param  {Array} ufMatches
- * @param  {Number} drupalId
- * @return {Object}
- */
-function findContactByDrupalId (ufMatches, drupalId) {
-  return _.find(ufMatches, match => match.uf_id === drupalId);
-}
-
-/**
- * Creates and returns a mapping of users to their drupal and civi ids
- *
- * To fetch the drupal ids, the `drush user-information` command is used. Those
- * ids are used to fetch the civi ids by using the UFMatch api
+ * Creates, caches, and returns a mapping of users to their drupal and civi ids
  *
  * @return {Promise} resolved with {Object}, ex. { civihr_staff: { drupal: 1, civi: 2 } }
  */
-function getUsersIds () {
-  const config = siteConfig();
-  const userInfoCmd = `drush user-information ${USERS.join(',')} --format=json`;
+function idsMap () {
+  if (CACHE.idsMap) {
+    return CACHE.idsMap;
+  }
 
-  let usersIds, ufMatches;
-  let ufMatchCmd = 'echo \'{ "uf_id": { "IN":[%{uids}] } }\' | cv api UFMatch.get sequential=1';
+  const map = _.transform(USERS, (result, user) => {
+    result[user] = {};
+  }, {});
 
-  usersIds = _.transform(JSON.parse(execSync(userInfoCmd, { cwd: config.root })), (result, user) => {
-    result[user.name] = { drupal: user.uid };
-  });
+  addDrupalIds();
+  addCiviIds();
 
-  ufMatchCmd = ufMatchCmd.replace('%{uids}', _.map(usersIds, 'drupal').join(','));
-  ufMatches = JSON.parse(execSync(ufMatchCmd, { cwd: path.join(config.root, 'sites/all/modules/civicrm') })).values;
+  CACHE.idsMap = map;
 
-  usersIds = _.transform(usersIds, (result, userIds, name) => {
-    userIds.civi = findContactByDrupalId(ufMatches, userIds.drupal).contact_id;
-    result[name] = userIds;
-  });
+  return map;
 
-  return usersIds;
+  /**
+   * Adds the drupal ids to the mapping
+   *
+   * It uses the `drush user-information` to get the full data of the users and
+   * then extracts the id from it
+   */
+  function addDrupalIds () {
+    const cmd = `drush user-information ${_.keys(map).join(',')} --format=json`;
+    const usersInfo = JSON.parse(execSync(cmd, { cwd: siteConfig().root }));
+
+    _.each(usersInfo, (userInfo) => {
+      const user = _.find(map, (__, name) => name === userInfo.name);
+
+      user.drupal = userInfo.uid;
+    });
+  }
+
+  /**
+   * Adds the civi ids to the mapping
+   *
+   * It uses the UFMatch.get Civi endpoint to match the drupal ids to the civi ids
+   */
+  function addCiviIds () {
+    let cmd = `echo '{ "uf_id": { "IN":[%{uids}] } }' | cv api UFMatch.get sequential=1`;
+    cmd = cmd.replace('%{uids}', _.map(map, 'drupal').join(','));
+
+    const ufMatches = JSON.parse(execSync(cmd, {
+      cwd: path.join(siteConfig().root, 'sites/all/modules/civicrm')
+    })).values;
+
+    _.each(ufMatches, (ufMatch) => {
+      const user = _.find(map, user => user.drupal === ufMatch.uf_id);
+
+      user.civi = ufMatch.contact_id;
+    });
+  }
 }
 
 /**
@@ -167,7 +191,7 @@ function getUsersIds () {
  * @param  {String} command
  * @return {Promise}
  */
-function runBackstopJS (command) {
+async function runBackstopJS (command) {
   if (touchSiteConfigFile()) {
     throwError(
       'No site-config.json file detected!\n' +
@@ -185,13 +209,19 @@ function runBackstopJS (command) {
       .on('end', async () => {
         try {
           (typeof argv.skipCookies === 'undefined') && await writeCookies();
-          await backstopjs(command, { configPath: FILES.temp, filter: argv.filter });
+
+          await backstopjs(command, {
+            config: FILES.temp,
+            filter: argv.filter
+          });
 
           success = true;
         } finally {
           cleanUpAndNotify(success);
 
-          success ? resolve() : reject(new Error('BackstopJS error. It may be a task error, a script error or a comparison error'));
+          success
+            ? resolve()
+            : reject(new Error('BackstopJS error. It may be a task error, a script error or a comparison error'));
         }
       });
   })
@@ -201,16 +231,33 @@ function runBackstopJS (command) {
 }
 
 /**
- * Returns the content of site config file
+ * Gets the name of the selected group specified in the --group argument
+ * If the argument was not passed, uses the name of the default group instead
+ *
+ * @return {String}
+ */
+function selectedGroup () {
+  return argv.group ? argv.group : DEFAULT_GROUP;
+}
+
+/**
+ * Caches, and returns the content of site config file
  *
  * @return {Object}
  */
 function siteConfig () {
-  return JSON.parse(fs.readFileSync(FILES.siteConfig));
+  if (CACHE.siteConfig) {
+    return CACHE.siteConfig;
+  }
+
+  config = JSON.parse(fs.readFileSync(FILES.siteConfig));
+  CACHE.siteConfig = config;
+
+  return config;
 }
 
 /**
- * Creates the site config file is in the backstopjs folder, if it doesn't exists yet
+ * Creates the site config file if it doesn't exists yet
  *
  * @return {Boolean} Whether the file had to be created or not
  */
