@@ -15,7 +15,7 @@ const PluginError = require('plugin-error');
 const DEFAULT_GROUP = '_all_';
 const DEFAULT_USER = 'civihr_admin';
 const CACHE = {
-  idsMap: null,
+  userIdsMap: null,
   siteConfig: null
 };
 const CONFIG_TPL = {
@@ -102,7 +102,7 @@ function cleanUpAndNotify (success) {
  */
 function constructScenarioUrl (scenarioUrl) {
   const config = siteConfig();
-  const usersIdsMapping = idsMap();
+  const usersIdsMapping = getUsersIdsMap();
 
   return scenarioUrl
     .replace('{{siteUrl}}', config.url)
@@ -134,21 +134,21 @@ function createTempConfig () {
  *
  * @return {Promise} resolved with {Object}, ex. { civihr_staff: { drupal: 1, civi: 2 } }
  */
-function idsMap () {
-  if (CACHE.idsMap) {
-    return CACHE.idsMap;
+function getUsersIdsMap () {
+  if (CACHE.userIdsMap) {
+    return CACHE.userIdsMap;
   }
 
-  const map = _.transform(USERS, (result, user) => {
+  const userIdsMap = _.transform(USERS, (result, user) => {
     result[user] = {};
   }, {});
 
   addDrupalIds();
   addCiviIds();
 
-  CACHE.idsMap = map;
+  CACHE.userIdsMap = userIdsMap;
 
-  return map;
+  return userIdsMap;
 
   /**
    * Adds the drupal ids to the mapping
@@ -158,11 +158,11 @@ function idsMap () {
    */
   function addDrupalIds () {
     const config = siteConfig();
-    const cmd = `drush user-information ${_.keys(map).join(',')} --format=json`;
+    const cmd = `drush user-information ${_.keys(userIdsMap).join(',')} --format=json`;
     const usersInfo = JSON.parse(execSync(cmd, { cwd: config.root }));
 
     _.each(usersInfo, (userInfo) => {
-      const user = _.find(map, (__, name) => name === userInfo.name);
+      const user = _.find(userIdsMap, (__, name) => name === userInfo.name);
 
       user.drupal = userInfo.uid;
     });
@@ -178,12 +178,12 @@ function idsMap () {
     const civiDir = path.join(config.root, 'sites/all/modules/civicrm');
 
     let cmd = `echo '{ "uf_id": { "IN":[%{uids}] } }' | cv api UFMatch.get sequential=1`;
-    cmd = cmd.replace('%{uids}', _.map(map, 'drupal').join(','));
+    cmd = cmd.replace('%{uids}', _.map(userIdsMap, 'drupal').join(','));
 
     const ufMatches = JSON.parse(execSync(cmd, { cwd: civiDir })).values;
 
     _.each(ufMatches, (ufMatch) => {
-      const user = _.find(map, user => user.drupal === ufMatch.uf_id);
+      const user = _.find(userIdsMap, user => user.drupal === ufMatch.uf_id);
 
       user.civi = ufMatch.contact_id;
     });
@@ -216,7 +216,9 @@ async function runBackstopJS (command) {
       .pipe(gulp.dest('.'))
       .on('end', async () => {
         try {
-          if (_.includes(['reference', 'test'], command) && shouldCreateCookies()) {
+          var isReferenceOrTestCommand = _.includes(['reference', 'test'], command);
+
+          if (isReferenceOrTestCommand && shouldCreateCookies()) {
             console.log('Writing cookies...');
             await writeCookies();
           }
