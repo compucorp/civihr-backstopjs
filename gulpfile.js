@@ -14,25 +14,29 @@ const PluginError = require('plugin-error');
 
 const DEFAULT_GROUP = '_all_';
 const DEFAULT_USER = 'civihr_admin';
-const USERS = [
-  'admin',
-  'civihr_admin',
-  'civihr_manager',
-  'civihr_staff'
-];
+const CACHE = {
+  idsMap: null,
+  siteConfig: null
+};
 const CONFIG_TPL = {
-  'url': 'http://%{site-host}',
-  'root': '%{path-to-site-root}'
+  url: 'http://%{site-host}',
+  root: '%{path-to-site-root}'
+};
+const DIRS = {
+  cookies: 'cookies',
+  scenarios: 'scenarios'
 };
 const FILES = {
   siteConfig: 'site-config.json',
   temp: 'backstop.temp.json',
   tpl: 'backstop.tpl.json'
 };
-const CACHE = {
-  idsMap: null,
-  siteConfig: null
-};
+const USERS = [
+  'admin',
+  'civihr_admin',
+  'civihr_manager',
+  'civihr_staff'
+];
 
 ['reference', 'test', 'openReport', 'approve'].map(action => {
   gulp.task(`backstopjs:${action}`, async () => {
@@ -48,15 +52,14 @@ const CACHE = {
  * @return {Array}
  */
 function buildScenariosList () {
-  const scenariosPath = 'scenarios';
   const group = selectedGroup();
 
-  return _(fs.readdirSync(scenariosPath))
+  return _(fs.readdirSync(DIRS.scenarios))
     .filter(scenario => {
       return group === DEFAULT_GROUP ? true : scenario === `${group}.json`;
     })
     .map(scenario => {
-      const content = fs.readFileSync(path.join(scenariosPath, scenario));
+      const content = fs.readFileSync(path.join(DIRS.scenarios, scenario));
 
       return JSON.parse(content).scenarios;
     })
@@ -98,9 +101,12 @@ function cleanUpAndNotify (success) {
  * @return {String}
  */
 function constructScenarioUrl (scenarioUrl) {
+  const config = siteConfig();
+  const usersIdsMapping = idsMap();
+
   return scenarioUrl
-    .replace('{{siteUrl}}', siteConfig().url)
-    .replace(/\{\{contactId:([^}]+)\}\}/g, (__, user) => idsMap()[user].civi);
+    .replace('{{siteUrl}}', config.url)
+    .replace(/\{\{contactId:([^}]+)\}\}/g, (__, user) => usersIdsMapping[user].civi);
 }
 
 /**
@@ -151,8 +157,9 @@ function idsMap () {
    * then extracts the id from it
    */
   function addDrupalIds () {
+    const config = siteConfig();
     const cmd = `drush user-information ${_.keys(map).join(',')} --format=json`;
-    const usersInfo = JSON.parse(execSync(cmd, { cwd: siteConfig().root }));
+    const usersInfo = JSON.parse(execSync(cmd, { cwd: config.root }));
 
     _.each(usersInfo, (userInfo) => {
       const user = _.find(map, (__, name) => name === userInfo.name);
@@ -167,12 +174,13 @@ function idsMap () {
    * It uses the UFMatch.get Civi endpoint to match the drupal ids to the civi ids
    */
   function addCiviIds () {
+    const config = siteConfig();
+    const civiDir = path.join(config.root, 'sites/all/modules/civicrm');
+
     let cmd = `echo '{ "uf_id": { "IN":[%{uids}] } }' | cv api UFMatch.get sequential=1`;
     cmd = cmd.replace('%{uids}', _.map(map, 'drupal').join(','));
 
-    const ufMatches = JSON.parse(execSync(cmd, {
-      cwd: path.join(siteConfig().root, 'sites/all/modules/civicrm')
-    })).values;
+    const ufMatches = JSON.parse(execSync(cmd, { cwd: civiDir })).values;
 
     _.each(ufMatches, (ufMatch) => {
       const user = _.find(map, user => user.drupal === ufMatch.uf_id);
@@ -250,13 +258,11 @@ function selectedGroup () {
  * @return {Boolean}
  */
 function shouldCreateCookies () {
-  const cookiesDir = 'cookies';
-
-  if (!fs.existsSync(cookiesDir)) {
+  if (!fs.existsSync(DIRS.cookies)) {
     return true;
   }
 
-  const cookies = fs.readdirSync(cookiesDir);
+  const cookies = fs.readdirSync(DIRS.cookies);
 
   if (!cookies.length) {
     return true;
@@ -270,7 +276,7 @@ function shouldCreateCookies () {
     return true;
   }
 
-  const userCookies = JSON.parse(fs.readFileSync(path.join(cookiesDir, cookies[0]), {
+  const userCookies = JSON.parse(fs.readFileSync(path.join(DIRS.cookies, cookies[0]), {
     encoding: 'utf8'
   }));
   const sessionCookie = _.find(userCookies, cookie => _.startsWith(cookie.name, 'SESS'));
@@ -341,13 +347,12 @@ function throwError (msg) {
  * @return {Promise}
  */
 async function writeCookies () {
-  const cookiesDir = 'cookies';
   const config = siteConfig();
 
-  !fs.existsSync(cookiesDir) && fs.mkdirSync(cookiesDir);
+  !fs.existsSync(DIRS.cookies) && fs.mkdirSync(DIRS.cookies);
 
   await Promise.all(USERS.map(async user => {
-    let cookieFilePath = path.join(cookiesDir, `${user}.json`);
+    let cookieFilePath = path.join(DIRS.cookies, `${user}.json`);
     let loginUrl = execSync(`drush uli --name=${user} --uri=${config.url} --browser=0`, { encoding: 'utf8', cwd: config.root });
 
     let browser = await puppeteer.launch();
