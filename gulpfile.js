@@ -208,8 +208,9 @@ async function runBackstopJS (command) {
       .pipe(gulp.dest('.'))
       .on('end', async () => {
         try {
-          if (_.includes(['reference', 'test'], command)) {
-            (typeof argv.skipCookies === 'undefined') && await writeCookies();
+          if (_.includes(['reference', 'test'], command) && shouldCreateCookies()) {
+            console.log('Writing cookies...');
+            await writeCookies();
           }
 
           await backstopjs(command, {
@@ -240,6 +241,42 @@ async function runBackstopJS (command) {
  */
 function selectedGroup () {
   return argv.group ? argv.group : DEFAULT_GROUP;
+}
+
+/**
+ * Runs several criteria to check whether cookies should be (re)created
+ * before running the test suites
+ *
+ * @return {Boolean}
+ */
+function shouldCreateCookies () {
+  const cookiesDir = 'cookies';
+
+  if (!fs.existsSync(cookiesDir)) {
+    return true;
+  }
+
+  const cookies = fs.readdirSync(cookiesDir);
+
+  if (!cookies.length) {
+    return true;
+  }
+
+  const everyUserHasCookies = USERS.every(user => {
+    return _.find(cookies, cookie => path.basename(cookie, '.json') === user);
+  });
+
+  if (!everyUserHasCookies) {
+    return true;
+  }
+
+  const userCookies = JSON.parse(fs.readFileSync(path.join(cookiesDir, cookies[0]), {
+    encoding: 'utf8'
+  }));
+  const sessionCookie = _.find(userCookies, cookie => _.startsWith(cookie.name, 'SESS'));
+  const isCookieExpired = sessionCookie.expires * 1000 <= Date.now();
+
+  return isCookieExpired;
 }
 
 /**
