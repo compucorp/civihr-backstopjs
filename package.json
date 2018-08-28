@@ -1,6 +1,6 @@
 {
-  "name": "uk.co.compucorp.civicrm.hrcore",
-  "description": "Provides CiviHR generic functionality",
+  "name": "civihr-backstopjs",
+  "description": "BackstopJS test suite for CiviHR",
   "private": true,
   "dependencies": {
     "ansi-colors": "^1.1.0",
