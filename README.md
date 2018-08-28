@@ -43,3 +43,6 @@ npx gulp backstopjs:test --group contact-summary
 npx gulp backstopjs:approve --group contact-summary
 npx gulp backstopjs:openReport --group contact-summary
 ```
+
+## Contributing
+Please check [CONTRIBUTING.md](CONTRIBUTING.md) to read how to contribute to the project.
