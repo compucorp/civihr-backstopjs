@@ -4,7 +4,7 @@
   "private": true,
   "dependencies": {
     "ansi-colors": "^1.1.0",
-    "backstopjs": "^3.5.4",
+    "backstopjs": "^3.5.8",
     "find": "^0.2.9",
     "gulp": "^4.0.0",
     "gulp-clean": "^0.4.0",
