@@ -1,0 +1,16 @@
+{
+  "name": "civihr-backstopjs",
+  "description": "BackstopJS test suite for CiviHR",
+  "private": true,
+  "dependencies": {
+    "ansi-colors": "^1.1.0",
+    "backstopjs": "^3.5.8",
+    "find": "^0.2.9",
+    "gulp": "^4.0.0",
+    "gulp-clean": "^0.4.0",
+    "gulp-file": "^0.4.0",
+    "gulp-notify": "^3.2.0",
+    "lodash": "^4.17.10",
+    "plugin-error": "^1.0.1"
+  }
+}
