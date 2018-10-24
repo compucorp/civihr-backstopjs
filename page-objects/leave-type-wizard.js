@@ -1,5 +1,5 @@
 const Page = require('./page');
-const LEAVE_TYPE_WIZARD_ROOT_SELECTOR = 'leave-type-wizard';
+const WIZARD_ROOT = 'leave-type-wizard';
 
 module.exports = class LeaveTypeWizard extends Page {
   /**
@@ -7,7 +7,7 @@ module.exports = class LeaveTypeWizard extends Page {
    */
   async fillTitleFieldIn () {
     await this.openSection(1);
-    await this.puppet.focus(insideWizard('input:first-child'));
+    await this.puppet.focus(`${WIZARD_ROOT} input:first-child`);
     await this.puppet.keyboard.type('Title');
   }
 
@@ -17,7 +17,7 @@ module.exports = class LeaveTypeWizard extends Page {
    * @param {Number} sectionIndex where `1` is the first section
    */
   async openSection (sectionIndex) {
-    await this.puppet.click(insideWizard(`.panel-default:nth-child(${sectionIndex})`));
+    await this.puppet.click(`${WIZARD_ROOT} .panel-default:nth-child(${sectionIndex})`);
   }
 
   /**
@@ -26,7 +26,7 @@ module.exports = class LeaveTypeWizard extends Page {
    * @param {Number} tabIndex where `1` is the first tab
    */
   async openTab (tabIndex) {
-    await this.puppet.click(insideWizard(`.nav-tabs-stacked li:nth-child(${tabIndex})`));
+    await this.puppet.click(`${WIZARD_ROOT} .nav-tabs-stacked li:nth-child(${tabIndex})`);
   }
 
   /**
@@ -38,8 +38,8 @@ module.exports = class LeaveTypeWizard extends Page {
    * @TODO fix this once there is a solution
    */
   async submitForm () {
-    await this.puppet.click(insideWizard('.panel-default:last-child'));
-    await this.puppet.click(insideWizard('.nav-tabs-stacked li:last-child'));
+    await this.puppet.click(`${WIZARD_ROOT} .panel-default:last-child`);
+    await this.puppet.click(`${WIZARD_ROOT} .nav-tabs-stacked li:last-child`);
     await this.puppet.evaluate(() => {
       document.querySelector('.leave-type-wizard__next-section-button').click();
     });
@@ -49,7 +49,7 @@ module.exports = class LeaveTypeWizard extends Page {
    * Toggles colour picker
    */
   async toggleColourPicker () {
-    await this.puppet.click(insideWizard('[palette]'));
+    await this.puppet.click(`${WIZARD_ROOT} [palette]`);
   }
 
   /**
@@ -57,15 +57,6 @@ module.exports = class LeaveTypeWizard extends Page {
    * that must be present in any section in any tab
    */
   async waitForReady () {
-    await this.puppet.waitFor(insideWizard('.form-horizontal'), { visible: true });
+    await this.puppet.waitFor(`${WIZARD_ROOT} .form-horizontal`, { visible: true });
   }
 };
-
-/**
- * Builds a selector inside the leave type wizard
- *
- * @param {String} selector a path to an object inside the wizard
- */
-function insideWizard (selector) {
-  return `${LEAVE_TYPE_WIZARD_ROOT_SELECTOR} ${selector}`;
-}
