@@ -3,6 +3,15 @@ const LEAVE_TYPE_WIZARD_ROOT_SELECTOR = 'leave-type-wizard';
 
 module.exports = class LeaveTypeWizard extends Page {
   /**
+   * Fills Title field in
+   */
+  async fillTitleFieldIn () {
+    await this.openSection(1);
+    await this.puppet.focus(insideWizard('input:first-child'));
+    await this.puppet.keyboard.type('Title');
+  }
+
+  /**
    * Opens section
    *
    * @param {Number} sectionIndex where `1` is the first section
