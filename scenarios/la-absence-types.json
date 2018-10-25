@@ -5,8 +5,24 @@
       "url": "{{siteUrl}}/civicrm/admin/leaveandabsences/types?action=browse"
     },
     {
-      "label": "L&A / Absence Types / Form",
-      "url": "{{siteUrl}}/civicrm/admin/leaveandabsences/types?action=add"
+      "label": "L&A / Absence Types / Leave Type Wizard / General Section",
+      "url": "{{siteUrl}}/civicrm/admin/leaveandabsences/types?action=add",
+      "onReadyScript": "leave-type-wizard/leave-type-wizard-general-section.js"
+    },
+    {
+      "label": "L&A / Absence Types / Leave Type Wizard / Settings Section",
+      "url": "{{siteUrl}}/civicrm/admin/leaveandabsences/types?action=add",
+      "onReadyScript": "leave-type-wizard/leave-type-wizard-settings-section.js"
+    },
+    {
+      "label": "L&A / Absence Types / Leave Type Wizard / Colour Picker",
+      "url": "{{siteUrl}}/civicrm/admin/leaveandabsences/types?action=add",
+      "onReadyScript": "leave-type-wizard/leave-type-wizard-colour-picker.js"
+    },
+    {
+      "label": "L&A / Absence Types / Leave Type Wizard / Input Errors",
+      "url": "{{siteUrl}}/civicrm/admin/leaveandabsences/types?action=add",
+      "onReadyScript": "leave-type-wizard/leave-type-wizard-input-errors.js"
     }
   ]
 }
