@@ -1,0 +1,13 @@
+{
+  "scenarios": [
+    {
+      "label": "Search / Staff Directory",
+      "url": "{{siteUrl}}/civicrm/contact/search/custom?csid=16&force=1"
+    },
+    {
+      "label": "Search / Staff Directory / Single Contact with Action Dropdown",
+      "url": "{{siteUrl}}/civicrm/contact/search/custom?csid=16&force=1",
+      "onReadyScript": "staff-directory/staff-directory-action-dropdown.js"
+    }
+  ]
+}
